@@ -25,9 +25,9 @@ public class BookmarkManager {
 	private static final int PARTIAL_MATCH_LENGTH = 3;
 	
 	/**
-	 * A map of the links by username
+	 * A map of the links by username and collection-name
 	 */
-	private static Map<String, List<Bookmark>> links = new HashMap<>();
+	private static Map<String, Map<String, Collection>> links = new HashMap<>();
 
 	public static enum BookmarkManagerResultType implements Messagable {
 		SuccessAddLink("Link added successfully!"),
@@ -64,10 +64,14 @@ public class BookmarkManager {
 			Bookmark bookmark = bookmarkResult.getValue();
 
 			if(!links.containsKey(username)) {
-				links.put(username, new ArrayList<>());
+				links.put(username, new HashMap<>());
 			}
 
-			links.get(username).add(bookmark);
+			if(!links.get(username).containsKey(Collection.DEFAULT_NAME)) {
+				links.get(username).put(Collection.DEFAULT_NAME, new Collection());
+			}
+
+			links.get(username).get(Collection.DEFAULT_NAME).addBookmark(bookmark);
 
 			StorageManager.storeBookmarks();
 
@@ -87,11 +91,16 @@ public class BookmarkManager {
 		String username = usernameResult.getValue();
 
 		StringBuilder result = new StringBuilder();
-		List<Bookmark> allLinks = links.get(username);
+		Map<String, Collection> allLinks = links.get(username);
 
-		for (int i = 0; i < allLinks.size(); i++) {
-			Bookmark link = allLinks.get(i);
-			result.append("\n").append(i+1).append(". ").append(link);
+		for(Map.Entry<String, Collection> collectionEntry : allLinks.entrySet()) {
+			List<Bookmark> bookmarks = collectionEntry.getValue().getBookmarks();
+			result.append("\nCollection ").append(collectionEntry.getKey()).append(":");
+			
+			for (int i = 0; i < bookmarks.size(); i++) {
+				Bookmark link = bookmarks.get(i);
+				result.append("\n").append(i+1).append(". ").append(link);
+			}
 		}
 
 		return new BookmarkManagerResult<String>(BookmarkManagerResultType.ListingAllLinks, result.toString());
@@ -106,8 +115,10 @@ public class BookmarkManager {
 
 		String username = usernameResult.getValue();
 
-		// get user's bookmarks
-		List<Bookmark> bookmarks = links.get(username);
+		// get all bookmarks flattened
+		List<Bookmark> bookmarks = links.get(username).values().stream()
+				.flatMap(coll -> coll.getBookmarks().stream())
+				.collect(Collectors.toList());
 
 		Map<Bookmark, Double> matchScores = new HashMap<>();
 
@@ -156,8 +167,10 @@ public class BookmarkManager {
 
 		String username = usernameResult.getValue();
 
-		// get user's bookmarks
-		List<Bookmark> bookmarks = links.get(username);
+		// get all bookmarks flattened
+		List<Bookmark> bookmarks = links.get(username).values().stream()
+				.flatMap(coll -> coll.getBookmarks().stream())
+				.collect(Collectors.toList());
 		
 		bookmarks = bookmarks.stream()
 				.filter(link -> link.getTitle().toLowerCase().contains(title.toLowerCase()))
@@ -191,11 +204,11 @@ public class BookmarkManager {
 		return score;
 	}
 
-	public static Map<String, List<Bookmark>> getLinks() {
+	public static Map<String, Map<String, Collection>> getLinks() {
 		return links;
 	}
 
-	public static void setLinks(Map<String, List<Bookmark>> links) {
+	public static void setLinks(Map<String, Map<String, Collection>> links) {
 		BookmarkManager.links = links;
 	}
 }

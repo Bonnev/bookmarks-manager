@@ -9,9 +9,16 @@ import java.util.List;
  * @author Bonnev
  */
 public class Collection {
+	public static final String DEFAULT_NAME = "--default--";
+	
 	private String name;
 	
 	private List<Bookmark> bookmarks;
+
+	public Collection() {
+		this.name = DEFAULT_NAME;
+		bookmarks = new ArrayList<>();
+	}
 
 	public Collection(String name) {
 		this.name = name;

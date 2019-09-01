@@ -7,13 +7,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Map;
 
 import org.bookmarksmanager.account.AccountManager;
 import org.bookmarksmanager.account.User;
-import org.bookmarksmanager.bookmark.Bookmark;
 import org.bookmarksmanager.bookmark.BookmarkManager;
+import org.bookmarksmanager.bookmark.Collection;
 import org.bookmarksmanager.server.Messagable;
 
 import com.google.gson.Gson;
@@ -29,7 +28,7 @@ public class StorageManager {
 	
 	private final static Type USERS_TYPE = new TypeToken<Map<String, User>>(){}.getType();
 	
-	private final static Type BOOKMARKS_TYPE = new TypeToken<Map<String, List<Bookmark>>>(){}.getType();
+	private final static Type BOOKMARKS_TYPE = new TypeToken<Map<String, Map<String, Collection>>>(){}.getType();
 	
 	public static enum StorageManagerResultType implements Messagable {
 		SuccessStoreUsers("Users stored successfully!"),
@@ -90,7 +89,7 @@ public class StorageManager {
 	}
 
 	public synchronized static StorageManagerResultType storeBookmarks() {
-		Map<String, List<Bookmark>> links = BookmarkManager.getLinks();
+		Map<String, Map<String, Collection>> links = BookmarkManager.getLinks();
 
 		String json = GSON.toJson(links, BOOKMARKS_TYPE);
 
@@ -114,7 +113,7 @@ public class StorageManager {
 			return StorageManagerResultType.ProblemLoadingBookmarks; 
 		}
 
-		Map<String, List<Bookmark>> bookmarks = GSON.fromJson(json, BOOKMARKS_TYPE);
+		Map<String, Map<String, Collection>> bookmarks = GSON.fromJson(json, BOOKMARKS_TYPE);
 
 		BookmarkManager.setLinks(bookmarks);
 
