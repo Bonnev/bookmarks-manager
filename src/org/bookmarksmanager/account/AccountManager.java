@@ -8,9 +8,10 @@ import java.util.Map;
 
 import javax.xml.bind.DatatypeConverter;
 
-import org.bookmarksmanager.server.AccountManagerResult;
 import org.bookmarksmanager.server.Messagable;
 import org.bookmarksmanager.server.ServerThread;
+import org.bookmarksmanager.storage.StorageManager;
+import org.bookmarksmanager.storage.StorageManager.StorageManagerResultType;
 
 public class AccountManager {
 	/**
@@ -40,7 +41,7 @@ public class AccountManager {
 		}
 	}
 
-	public synchronized static AccountManagerResultType register(String username, String password) {
+	public synchronized static Messagable register(String username, String password) {
 		ServerThread currentThread = (ServerThread) Thread.currentThread();
 		if(currentThread.getCurrentUser() != null) {
 			return AccountManagerResultType.AnotherUserLoggedIn;
@@ -57,6 +58,13 @@ public class AccountManager {
 		String hashed = hashPassword(password);
 
 		users.put(username, new User(username, hashed));
+
+		StorageManagerResultType storageResult = StorageManager.storeUsers();
+
+		if(storageResult != StorageManagerResultType.SuccessStoreUsers) {
+			return storageResult;
+		}
+
 		return AccountManagerResultType.SuccessRegister;
 	}
 	
@@ -90,13 +98,13 @@ public class AccountManager {
 		return AccountManagerResultType.SuccessLogout;
 	}
 	
-	public synchronized static AccountManagerResult getCurrentUsername() {
+	public synchronized static AccountManagerResult<String> getCurrentUsername() {
 		ServerThread currentThread = (ServerThread) Thread.currentThread();
 		if(currentThread.getCurrentUser() == null) {
-			return new AccountManagerResult(AccountManagerResultType.NoOneIsLoggedIn, null);
+			return new AccountManagerResult<String>(AccountManagerResultType.NoOneIsLoggedIn, null);
 		}
 
-		return new AccountManagerResult(AccountManagerResultType.AnotherUserLoggedIn, currentThread.getCurrentUser().getUsername());
+		return new AccountManagerResult<String>(AccountManagerResultType.AnotherUserLoggedIn, currentThread.getCurrentUser().getUsername());
 	}
 
 	private static String hashPassword(String password) {
@@ -111,5 +119,13 @@ public class AccountManager {
 		}
 
 		return null;
+	}
+
+	public static Map<String, User> getUsers() {
+		return users;
+	}
+
+	public static void setUsers(Map<String, User> users) {
+		AccountManager.users = users;
 	}
 }

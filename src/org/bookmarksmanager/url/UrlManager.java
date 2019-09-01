@@ -3,30 +3,37 @@ package org.bookmarksmanager.url;
 import java.net.MalformedURLException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
-import org.bookmarksmanager.account.AccountManager;
-import org.bookmarksmanager.account.AccountManager.AccountManagerResultType;
-import org.bookmarksmanager.server.AbstractManagerResult;
-import org.bookmarksmanager.server.AccountManagerResult;
+import org.bookmarksmanager.bookmark.Bookmark;
 import org.bookmarksmanager.server.Messagable;
-import org.bookmarksmanager.server.ServerThread;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 
 public class UrlManager {
-	/**
-	 * A map of the links by username
-	 */
-	private static Map<String, List<String>> links = new HashMap<>();
+	private final static String[] STOP_WORDS = new String[] {"as","a","an","the","which","to","of","and","on","in","at","where","whereas","what","who","whom",
+			"i","you","he","she","it","my","mine","your","yours","her","hers","him","his","its","while","whilst", "why", "can",
+			"did", "do", "how", "they", "their", "theirs"};
+
+	private final static String STOP_WORDS_REGEX = Arrays.stream(STOP_WORDS).map(word -> String.format("\\b%s\\b", word)).collect(Collectors.joining("|"));
 	
+	private final static int MAX_WORD_COUNT = 300;
+
 	public static enum UrlManagerResultType implements Messagable {
-		SuccessAddLink("Link added successfully!"),
-		ListingAllLinks("Listing all links:"),
+		SuccessGenerated("Bookmark successfully generated!"),
 		LinkInvalid("Given link is invalid!"),
 		LinkMalformed("Given link is malformed!"),
+		HttpStatusWrong("The received HTTP status code was not 200!"),
 		Unexpected("An unexpected error has occurred!");
 
 		private String message;
@@ -40,55 +47,78 @@ public class UrlManager {
 		}
 	}
 	
-	public synchronized static AbstractManagerResult addLink(String url) {
-		Document doc;
+	public synchronized static UrlManagerResult<Bookmark> generateBookmark(String url) {
 		try {
-			
-			AccountManagerResult result = AccountManager.getCurrentUsername();
-			
-			if(result.getType() == AccountManagerResultType.NoOneIsLoggedIn) {
-				return new AccountManagerResult(result.getType(), null);
-			}
-			
-			String username = result.getValue();
+			Document document = Jsoup.connect(url).get(); 
 
-			doc = Jsoup.connect(url).get();
+			List<String> keywords = extractKeywords(document);
 
+			Bookmark bookmark = new Bookmark(url, document.title(), keywords);
 
-			if(!links.containsKey(username)) {
-				links.put(username, new ArrayList<>());
-			}
-
-			links.get(username).add(url);
-			return new UrlManagerResult(UrlManagerResultType.SuccessAddLink, doc.title());
-			/*System.out.println(doc.title());
-			Elements newsHeadlines = doc.select("h1,h2,h3,h4,h5,h6,a,li,p");
-			for (Element headline : newsHeadlines) {
-				System.out.printf("\t%s%n", headline.text());
-			}*/
+			return new UrlManagerResult<Bookmark>(UrlManagerResultType.SuccessGenerated, bookmark);
 		} catch (MalformedURLException e) {
-			return new UrlManagerResult(UrlManagerResultType.LinkMalformed, null);
+			return new UrlManagerResult<Bookmark>(UrlManagerResultType.LinkMalformed, null);
 		} catch (UnknownHostException e) {
-			return new UrlManagerResult(UrlManagerResultType.LinkInvalid, null);
-		} catch (Throwable e) {
-			return new UrlManagerResult(UrlManagerResultType.Unexpected, null);
+			return new UrlManagerResult<Bookmark>(UrlManagerResultType.LinkInvalid, null);
+		} catch (HttpStatusException e) {
+			return new UrlManagerResult<Bookmark>(UrlManagerResultType.HttpStatusWrong, null);
+		}catch (Throwable e) {
+			return new UrlManagerResult<Bookmark>(UrlManagerResultType.Unexpected, null);
 		}
 	}
-	
-	public synchronized static UrlManagerResult listAll() {
-		ServerThread currentThread = (ServerThread) Thread.currentThread();
-		String username = currentThread.getCurrentUser().getUsername();
 
-		StringBuilder result = new StringBuilder();
-		List<String> allLinks = links.get(username);
-
-		result.append(1).append(". ").append(allLinks.get(0));
-
-		for (int i = 1; i < allLinks.size(); i++) {
-			String link = allLinks.get(i);
-			result.append("\n").append(i+1).append(". ").append(link);
+	private static List<String> extractKeywords(Document document) {
+		StringBuilder allText = new StringBuilder();
+		
+		// get all text from tags h1,h2,h3,h4,h5,h6,a,li,p
+		Elements textElements = document.select("h1,h2,h3,h4,h5,h6,a,li,p");
+		for (Element textElement : textElements) {
+			allText.append(' ').append(textElement.text());
 		}
 
-		return new UrlManagerResult(UrlManagerResultType.ListingAllLinks, result.toString());
+		// perform the following operation to the whole string
+		String normalized = allText.toString()
+				.toLowerCase() // convert to lower case
+				.replaceAll("([^a-z]+|\b[a-z]\b|" + STOP_WORDS_REGEX + ")", " ") // remove non-english, single-letter and stop words
+				.replaceAll("\\s{1,}", " ") // replace all whitespace sequences with a space
+				.replaceAll("\\b([a-z]+)(ed|ing|ly|ment)\\b", "$1") // remove ed|ing|ly|ment
+				.trim(); // remove trailing whitespace
+
+		// split into words
+		String[] allWords = normalized.split(" ");
+
+		Map<String, Integer> occurrences = new HashMap<>();
+
+		// map by occurrences
+		for (String word : allWords) {
+			Integer count = occurrences.getOrDefault(word, 0);
+			occurrences.put(word, count + 1);
+		}
+
+		Map<Integer, List<String>> sortedByOccurrence = new TreeMap<>(Collections.reverseOrder());
+
+		// sort by occurrences
+		for (Map.Entry<String, Integer> occurrence : occurrences.entrySet()) {
+			if(!sortedByOccurrence.containsKey(occurrence.getValue())) {
+				sortedByOccurrence.put(occurrence.getValue(), new ArrayList<String>());
+			}
+			sortedByOccurrence.get(occurrence.getValue()).add(occurrence.getKey());
+		}
+
+		// get first MAX words and store in result
+		ArrayList<String> resultWords = new ArrayList<>();
+		int current = 0;
+		outer: for (List<String> occurrenceWords : sortedByOccurrence.values()) {
+			for (String word : occurrenceWords) {
+				resultWords.add(word);
+				
+				current++;
+				if(current >= MAX_WORD_COUNT) {
+					break outer;
+				}
+			}
+		}
+
+		return resultWords;
 	}
 }

@@ -1,14 +1,20 @@
 package org.bookmarksmanager.server;
 
-public abstract class AbstractManagerResult implements Messagable, Valuable {
-	protected String value;
+public abstract class AbstractManagerResult<T extends Messagable, V> implements Messagable, Valuable<V> {
+	protected V value;
+	protected T type;
 	
 	@Override
-	public String getValue() {
+	public V getValue() {
 		return value;
 	}
 
 	@Override
-	public abstract String getMessage();
+	public String getMessage() {
+		return type.getMessage();
+	}
 
+	public T getType() {
+		return type;
+	}
 }

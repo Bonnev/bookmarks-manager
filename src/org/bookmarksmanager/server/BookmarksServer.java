@@ -9,12 +9,27 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.bookmarksmanager.storage.StorageManager;
+import org.bookmarksmanager.storage.StorageManager.StorageManagerResultType;
+
 public class BookmarksServer {
 	private final static int PORT = 8080;
 
 	public static void main(String[] args) {
+		StorageManagerResultType loadUsersResult = StorageManager.loadUsers();
+
+		if(loadUsersResult == StorageManagerResultType.ProblemLoadingUsers) {
+			System.out.println(loadUsersResult.getMessage());
+		}
+
+		StorageManagerResultType loadBookmarksResult = StorageManager.loadBookmarks();
+
+		if(loadBookmarksResult == StorageManagerResultType.ProblemLoadingBookmarks) {
+			System.out.println(loadBookmarksResult.getMessage());
+		}
+
 		try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-			System.out.printf("server is running on localhost:%d%n", PORT);
+			System.out.printf("Server running on localhost:%d%n", PORT);
 
 			while (true) {
 				Socket socket = serverSocket.accept();

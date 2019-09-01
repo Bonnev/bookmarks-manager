@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bookmarksmanager.account.AccountManager;
-import org.bookmarksmanager.url.UrlManager;
-import org.bookmarksmanager.url.UrlManagerResult;
+import org.bookmarksmanager.bookmark.BookmarkManager;
 
 public class ServerRunnable implements Runnable {
 	//private Socket socket;
@@ -72,19 +74,38 @@ public class ServerRunnable implements Runnable {
 		case "add":
 			String url = tokens[1];
 			
-			AbstractManagerResult addResult = UrlManager.addLink(url);
+			Messagable addResult = BookmarkManager.addLink(url);
 
 			writer.println(addResult.getMessage());
-			if(addResult.getValue() != null) {
-				writer.println(addResult.getValue());
-			}
 			break;
 		case "list-all":
-			UrlManagerResult listAllResult = UrlManager.listAll();
+			AbstractManagerResult<?, String> listAllResult = BookmarkManager.listAll();
 
 			writer.println(listAllResult.getMessage());
 			if(listAllResult.getValue() != null) {
 				writer.println(listAllResult.getValue());
+			}
+			break;
+		case "search":
+			AbstractManagerResult<?, String> searchResult = null;
+			
+			String byWhat = tokens[1];
+			if(byWhat.equals("-tags")) {
+				List<String> tags = Arrays.stream(tokens).skip(2).collect(Collectors.toList());
+				searchResult = BookmarkManager.searchByTags(tags);
+				
+			} else if(byWhat.equals("-title")) {
+				String title = tokens[2];
+				searchResult = BookmarkManager.searchByTitle(title);
+				
+			} else {
+				writer.println("Malformed command!");
+				break;
+			}
+
+			writer.println(searchResult.getMessage());
+			if(searchResult.getValue() != null) {
+				writer.println(searchResult.getValue());
 			}
 			break;
 		}

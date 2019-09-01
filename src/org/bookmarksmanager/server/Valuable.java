@@ -1,5 +1,5 @@
 package org.bookmarksmanager.server;
 
-public interface Valuable {
-	public String getValue();
+public interface Valuable<V> {
+	public V getValue();
 }
