@@ -19,13 +19,12 @@ public class ClientRunnable implements Runnable {
 		}
 	}
 
-
 	@Override
 	public void run() {
 		try {
 			String nextLine = reader.readLine();
 			while (nextLine != null) {
-				System.out.println(nextLine);
+				System.out.println("--> " + nextLine);
 
 				nextLine = reader.readLine();
 			}
