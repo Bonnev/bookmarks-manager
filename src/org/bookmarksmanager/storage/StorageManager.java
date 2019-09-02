@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.bookmarksmanager.account.AccountManager;
@@ -114,6 +115,12 @@ public class StorageManager {
 		}
 
 		Map<String, Map<String, Collection>> bookmarks = GSON.fromJson(json, BOOKMARKS_TYPE);
+
+		for(String username : AccountManager.getUsers().keySet()) {
+			if(!bookmarks.containsKey(username)) {
+				bookmarks.put(username, new HashMap<>());
+			}
+		}
 
 		BookmarkManager.setLinks(bookmarks);
 

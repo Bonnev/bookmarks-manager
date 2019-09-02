@@ -9,13 +9,56 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.bookmarksmanager.storage.ChromeBookmark;
 import org.bookmarksmanager.storage.StorageManager;
 import org.bookmarksmanager.storage.StorageManager.StorageManagerResultType;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class BookmarksServer {
 	private final static int PORT = 8080;
 
 	public static void main(String[] args) {
+		Gson gson = new GsonBuilder().create();
+		ChromeBookmark cb = gson.fromJson("{" + 
+				"               \"children\": [ {" + 
+				"                  \"date_added\": \"13163433283228721\"," + 
+				"                  \"id\": \"1872\"," + 
+				"                  \"name\": \"MySpeed by Enounce\"," + 
+				"                  \"sync_transaction_version\": \"1\"," + 
+				"                  \"type\": \"url\"," + 
+				"                  \"url\": \"http://jle.vi/myspeed\"" + 
+				"               }, {" + 
+				"                  \"date_added\": \"13163433283228796\"," + 
+				"                  \"id\": \"1873\"," + 
+				"                  \"name\": \"YouTube HTML5 Trial\"," + 
+				"                  \"sync_transaction_version\": \"1\"," + 
+				"                  \"type\": \"url\"," + 
+				"                  \"url\": \"http://youtube.com/html5\"" + 
+				"               }, {" + 
+				"                  \"date_added\": \"13163433283228868\"," + 
+				"                  \"id\": \"1874\"," + 
+				"                  \"name\": \"Stitcher for Android\"," + 
+				"                  \"sync_transaction_version\": \"1\"," + 
+				"                  \"type\": \"url\"," + 
+				"                  \"url\": \"http://www.stitcher.com/\"" + 
+				"               }, {" + 
+				"                  \"date_added\": \"13163433283228945\"," + 
+				"                  \"id\": \"1875\"," + 
+				"                  \"name\": \"Audible.com Audiobooks\"," + 
+				"                  \"sync_transaction_version\": \"1\"," + 
+				"                  \"type\": \"url\"," + 
+				"                  \"url\": \"http://www.audibletrial.com/superhuman\"" + 
+				"               } ]," + 
+				"               \"date_added\": \"13163433283227966\"," + 
+				"               \"date_modified\": \"13163433283228945\"," + 
+				"               \"id\": \"1862\"," + 
+				"               \"name\": \"Lecture 56 - SuperLearning by video or audio\"," + 
+				"               \"sync_transaction_version\": \"1\"," + 
+				"               \"type\": \"folder\"" + 
+				"            }", ChromeBookmark.class);
+		
 		StorageManagerResultType loadUsersResult = StorageManager.loadUsers();
 
 		if(loadUsersResult == StorageManagerResultType.ProblemLoadingUsers) {

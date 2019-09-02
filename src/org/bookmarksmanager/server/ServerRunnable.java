@@ -78,6 +78,32 @@ public class ServerRunnable implements Runnable {
 
 			writer.println(addResult.getMessage());
 			break;
+		case "add-to":
+			String addCollectionName = tokens[1];
+			String addUrl = tokens[2];
+			
+			Messagable addToResult = BookmarkManager.addToCollection(addCollectionName, addUrl);
+
+			writer.println(addToResult.getMessage());
+			break;
+		case "remove-from":
+			String removeCollectionName = tokens[1];
+			String removeUrl = tokens[2];
+
+			Messagable removeFromResult = BookmarkManager.removeFromCollection(removeCollectionName, removeUrl);
+
+			writer.println(removeFromResult.getMessage());
+			break;
+		case "list":
+			String listCollection = tokens[1];
+
+			AbstractManagerResult<?, String> listResult = BookmarkManager.listCollection(listCollection);
+
+			writer.println(listResult.getMessage());
+			if(listResult.getValue() != null) {
+				writer.println(listResult.getValue());
+			}
+			break;
 		case "list-all":
 			AbstractManagerResult<?, String> listAllResult = BookmarkManager.listAll();
 
@@ -107,6 +133,13 @@ public class ServerRunnable implements Runnable {
 			if(searchResult.getValue() != null) {
 				writer.println(searchResult.getValue());
 			}
+			break;
+		case "make-collection":
+			String makeCollectionName = tokens[1];
+
+			Messagable makeCollectionResult = BookmarkManager.makeCollection(makeCollectionName);
+
+			writer.println(makeCollectionResult.getMessage());
 			break;
 		}
 	}

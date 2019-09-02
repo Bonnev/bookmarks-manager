@@ -32,8 +32,13 @@ public class BookmarkManager {
 	public static enum BookmarkManagerResultType implements Messagable {
 		SuccessAddLink("Link added successfully!"),
 		ListingAllLinks("Listing all links:"),
+		ListingCollection("Listing collection's links:"),
 		ListingAllTagLinks("Listing all links matching the tags:"),
-		ListingAllTitleLinks("Listing all links containing the title:");
+		ListingAllTitleLinks("Listing all links containing the title:"),
+		CollectionAlreadyExists("The collection to make already exists!"),
+		CollectionNotExist("The collection you are referring does not exist!"),
+		SuccessMakeCollection("Collection created successfully!"),
+		SuccessRemoveCollection("Link removed successfully!");
 
 		private String message;
 
@@ -47,6 +52,11 @@ public class BookmarkManager {
 	}
 
 	public synchronized static Messagable addLink(String url) {
+		makeCollection(Collection.DEFAULT_NAME);
+		return addToCollection(Collection.DEFAULT_NAME, url);
+	}
+	
+	public synchronized static Messagable addToCollection(String collectionName, String url) {
 		try {
 			AccountManagerResult<String> result = AccountManager.getCurrentUsername();
 
@@ -63,15 +73,11 @@ public class BookmarkManager {
 			String username = result.getValue();
 			Bookmark bookmark = bookmarkResult.getValue();
 
-			if(!links.containsKey(username)) {
-				links.put(username, new HashMap<>());
+			if(!links.get(username).containsKey(collectionName)) {
+				return BookmarkManagerResultType.CollectionNotExist;
 			}
 
-			if(!links.get(username).containsKey(Collection.DEFAULT_NAME)) {
-				links.get(username).put(Collection.DEFAULT_NAME, new Collection());
-			}
-
-			links.get(username).get(Collection.DEFAULT_NAME).addBookmark(bookmark);
+			links.get(username).get(collectionName).addBookmark(bookmark);
 
 			StorageManager.storeBookmarks();
 
@@ -79,6 +85,26 @@ public class BookmarkManager {
 		} catch (Throwable e) {
 			return UrlManagerResultType.Unexpected;
 		}
+	}
+	
+	public synchronized static Messagable removeFromCollection(String collectionName, String url) {
+		AccountManagerResult<String> result = AccountManager.getCurrentUsername();
+
+		if(result.getType() == AccountManagerResultType.NoOneIsLoggedIn) {
+			return result.getType();
+		}
+
+		String username = result.getValue();
+
+		if(!links.get(username).containsKey(collectionName)) {
+			return BookmarkManagerResultType.CollectionNotExist;
+		}
+
+		links.get(username).get(collectionName).removeBookmark(url);
+
+		StorageManager.storeBookmarks();
+
+		return BookmarkManagerResultType.SuccessRemoveCollection;
 	}
 
 	public synchronized static AbstractManagerResult<?, String> listAll() {
@@ -89,21 +115,38 @@ public class BookmarkManager {
 		}
 
 		String username = usernameResult.getValue();
+		StringBuilder resultString = new StringBuilder();
 
-		StringBuilder result = new StringBuilder();
-		Map<String, Collection> allLinks = links.get(username);
-
-		for(Map.Entry<String, Collection> collectionEntry : allLinks.entrySet()) {
-			List<Bookmark> bookmarks = collectionEntry.getValue().getBookmarks();
-			result.append("\nCollection ").append(collectionEntry.getKey()).append(":");
-			
-			for (int i = 0; i < bookmarks.size(); i++) {
-				Bookmark link = bookmarks.get(i);
-				result.append("\n").append(i+1).append(". ").append(link);
-			}
+		for (String collectionName : links.get(username).keySet()) {
+			AbstractManagerResult<?, String> result = listCollection(collectionName);
+			resultString.append(result.getValue());
 		}
 
-		return new BookmarkManagerResult<String>(BookmarkManagerResultType.ListingAllLinks, result.toString());
+		return new BookmarkManagerResult<String>(BookmarkManagerResultType.ListingAllLinks, resultString.toString());
+	}
+	
+	public synchronized static AbstractManagerResult<?, String> listCollection(String collectionName) {
+		AccountManagerResult<String> usernameResult = AccountManager.getCurrentUsername();
+
+		if(usernameResult.getType() == AccountManagerResultType.NoOneIsLoggedIn) {
+			return new AccountManagerResult<String>(usernameResult.getType(), null);
+		}
+
+		String username = usernameResult.getValue();
+
+		StringBuilder result = new StringBuilder();
+
+		Collection collection = links.get(username).get(collectionName);
+			
+		List<Bookmark> bookmarks = collection.getBookmarks();
+		result.append("\nCollection ").append(collectionName).append(":");
+
+		for (int i = 0; i < bookmarks.size(); i++) {
+			Bookmark link = bookmarks.get(i);
+			result.append("\n").append(i+1).append(". ").append(link);
+		}
+
+		return new BookmarkManagerResult<String>(BookmarkManagerResultType.ListingCollection, result.toString());
 	}
 	
 	public synchronized static AbstractManagerResult<?, String> searchByTags(List<String> tags) {
@@ -210,5 +253,23 @@ public class BookmarkManager {
 
 	public static void setLinks(Map<String, Map<String, Collection>> links) {
 		BookmarkManager.links = links;
+	}
+
+	public static Messagable makeCollection(String collectionName) {
+		AccountManagerResult<String> result = AccountManager.getCurrentUsername();
+
+		if(result.getType() == AccountManagerResultType.NoOneIsLoggedIn) {
+			return result.getType();
+		}
+
+		String username = result.getValue();
+
+		if(links.get(username).containsKey(collectionName)) {
+			return BookmarkManagerResultType.CollectionAlreadyExists;
+		}
+
+		links.get(username).put(collectionName, new Collection(collectionName));
+
+		return BookmarkManagerResultType.SuccessMakeCollection;
 	}
 }
